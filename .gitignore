@@ -1,0 +1,20 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+.streamlit/secrets.toml
+
+# Regenerated locally. The raw table is not committed because the public
+# mirror does not declare a licence; scripts/download_data.py fetches it.
+data/raw/*.csv
+data/raw/*.part
+data/processed/*.csv
+data/sample/*.csv
+artifacts/*.joblib
+
+# Official test file from the same unlicensed mirror, and predictions that copy its rows.
+data/external/*.csv
+reports/external_test_predictions.csv
+*.egg-info/

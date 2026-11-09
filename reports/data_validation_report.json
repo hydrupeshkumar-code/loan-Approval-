@@ -1,0 +1,74 @@
+{
+  "rows": 614,
+  "columns": 13,
+  "column_names": [
+    "Loan_ID",
+    "Gender",
+    "Married",
+    "Dependents",
+    "Education",
+    "Self_Employed",
+    "ApplicantIncome",
+    "CoapplicantIncome",
+    "LoanAmount",
+    "Loan_Amount_Term",
+    "Credit_History",
+    "Property_Area",
+    "Loan_Status"
+  ],
+  "dtypes": {
+    "Loan_ID": "object",
+    "Gender": "object",
+    "Married": "object",
+    "Dependents": "object",
+    "Education": "object",
+    "Self_Employed": "object",
+    "ApplicantIncome": "int64",
+    "CoapplicantIncome": "float64",
+    "LoanAmount": "float64",
+    "Loan_Amount_Term": "float64",
+    "Credit_History": "float64",
+    "Property_Area": "object",
+    "Loan_Status": "object"
+  },
+  "numeric_features": [
+    "ApplicantIncome",
+    "CoapplicantIncome",
+    "LoanAmount",
+    "Loan_Amount_Term",
+    "Credit_History"
+  ],
+  "categorical_features": [
+    "Loan_ID",
+    "Gender",
+    "Married",
+    "Dependents",
+    "Education",
+    "Self_Employed",
+    "Property_Area"
+  ],
+  "missing_values": {
+    "Gender": 13,
+    "Married": 3,
+    "Dependents": 15,
+    "Self_Employed": 32,
+    "LoanAmount": 22,
+    "Loan_Amount_Term": 14,
+    "Credit_History": 50
+  },
+  "duplicate_records": 0,
+  "target_column": "Loan_Status",
+  "target_distribution": {
+    "Y": 422,
+    "N": 192
+  },
+  "missing_target_rows": 0,
+  "unexpected_target_labels": {},
+  "identifier_columns": [
+    "Loan_ID"
+  ],
+  "invalid_values": {},
+  "unexpected_categories": {},
+  "missing_model_inputs": [],
+  "records_removed": 0
+}

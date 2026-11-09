@@ -1,0 +1,297 @@
+{
+  "model_name": "RandomForestClassifier",
+  "selection_metric": "accuracy",
+  "selection_reason": "Models are ranked by mean stratified cross-validation accuracy on the training set, because that is the score being asked for. The cutoff is also chosen on training out-of-fold predictions to maximise accuracy. The test set is scored once, after both choices. A most-frequent dummy is included so a high accuracy still has to beat always predicting approval.",
+  "threshold": 0.36,
+  "threshold_reason": "Cutoff maximises accuracy on training out-of-fold probabilities. The test set was not used to choose it. pipeline.predict() still uses 0.5; the app and predict module use this threshold.",
+  "cautious_threshold": 0.71,
+  "cautious_threshold_reason": "Cutoff maximises balanced accuracy on training out-of-fold probabilities, so rejected applications count as much as approved ones. It catches more risky applications but lowers overall accuracy. Optional in the app.",
+  "cautious_test_metrics": {
+    "accuracy": 0.7642276422764228,
+    "precision": 0.9117647058823529,
+    "recall": 0.7294117647058823,
+    "f1": 0.8104575163398693,
+    "balanced_accuracy": 0.7857585139318886,
+    "roc_auc": 0.8538699690402477,
+    "average_precision": 0.8906922356786766,
+    "confusion_matrix": [
+      [
+        32,
+        6
+      ],
+      [
+        23,
+        62
+      ]
+    ],
+    "true_negative": 32,
+    "false_positive": 6,
+    "false_negative": 23,
+    "true_positive": 62
+  },
+  "random_state": 42,
+  "test_size": 0.2,
+  "cv_folds": 5,
+  "training_mode": "full",
+  "training_date": "2026-11-09T15:20:39+00:00",
+  "target_column": "Loan_Status",
+  "positive_label": "Y",
+  "class_labels": {
+    "1": "Approved",
+    "0": "Rejected"
+  },
+  "raw_features": [
+    "ApplicantIncome",
+    "CoapplicantIncome",
+    "LoanAmount",
+    "Loan_Amount_Term",
+    "Married",
+    "Dependents",
+    "Education",
+    "Self_Employed",
+    "Credit_History",
+    "Property_Area"
+  ],
+  "engineered_features": [
+    "TotalIncome",
+    "LoanToIncome",
+    "AmountPerMonth"
+  ],
+  "feature_notes": {
+    "TotalIncome": "ApplicantIncome plus CoapplicantIncome. The instalment is paid from the household, not from one income field alone. If both incomes are missing the total stays missing. If only one is missing, the known income is kept and the missing one counts as zero for this sum.",
+    "LoanToIncome": "LoanAmount divided by TotalIncome. It measures how large the request is relative to combined income. A zero or missing total becomes missing instead of infinity.",
+    "AmountPerMonth": "LoanAmount divided by Loan_Amount_Term. In the source table LoanAmount is stored in thousands, so this is a rough monthly burden in those units, not a currency instalment. A zero or missing term becomes missing."
+  },
+  "excluded_features": [
+    "Gender"
+  ],
+  "excluded_reason": "Gender is kept for the fairness audit and is not a predictive input. Loan_ID is an identifier. Dropping Gender does not remove bias.",
+  "dataset": {
+    "name": "Analytics Vidhya Loan Prediction (Dream Housing Finance)",
+    "original_source_url": "https://datahack.analyticsvidhya.com/contest/practice-problem-loan-prediction-iii/",
+    "direct_download_url": "https://raw.githubusercontent.com/shrikant-temburwar/Loan-Prediction-Dataset/master/train.csv",
+    "provider": "GitHub mirror of the Analytics Vidhya practice problem",
+    "licence": "The GitHub mirror does not contain a licence file (GitHub's license API returns 404). The table is the public Analytics Vidhya practice problem Loan Prediction, published for learning. This project uses it for coursework, demonstration, and portfolios. Check Analytics Vidhya's current terms before any commercial use, and do not treat this mirror as an official data licence.",
+    "download_date": "2026-11-05T16:04:33+00:00",
+    "sha256": "8c2cc67a13279ec746b15f76f14e8503154274ef7f221d2437033b4407c80ca8"
+  },
+  "best_params": {
+    "model__n_estimators": 100,
+    "model__min_samples_leaf": 5,
+    "model__max_depth": 12
+  },
+  "comparison": [
+    {
+      "model": "RandomForestClassifier",
+      "params": {
+        "model__n_estimators": 100,
+        "model__min_samples_leaf": 5,
+        "model__max_depth": 12
+      },
+      "cv_roc_auc_mean": 0.7745092846960642,
+      "cv_roc_auc_std": 0.08235179468285944,
+      "cv_f1_mean": 0.8702638317065073,
+      "cv_f1_std": 0.027122459988421003,
+      "cv_balanced_accuracy_mean": 0.6891531904047128,
+      "cv_balanced_accuracy_std": 0.06325871489372449,
+      "cv_accuracy_mean": 0.7982683982683982,
+      "cv_accuracy_std": 0.04569626807089581
+    },
+    {
+      "model": "ExtraTreesClassifier",
+      "params": {
+        "model__n_estimators": 100,
+        "model__min_samples_leaf": 5,
+        "model__max_depth": 12
+      },
+      "cv_roc_auc_mean": 0.7187496105808717,
+      "cv_roc_auc_std": 0.08602346533829361,
+      "cv_f1_mean": 0.8702638317065073,
+      "cv_f1_std": 0.027122459988421003,
+      "cv_balanced_accuracy_mean": 0.6891531904047128,
+      "cv_balanced_accuracy_std": 0.06325871489372449,
+      "cv_accuracy_mean": 0.7982683982683982,
+      "cv_accuracy_std": 0.04569626807089581
+    },
+    {
+      "model": "LogisticRegression",
+      "params": {
+        "model__C": 0.1
+      },
+      "cv_roc_auc_mean": 0.7300908172609438,
+      "cv_roc_auc_std": 0.0918178168311886,
+      "cv_f1_mean": 0.8672066198070312,
+      "cv_f1_std": 0.026185460644530104,
+      "cv_balanced_accuracy_mean": 0.6863195408158449,
+      "cv_balanced_accuracy_std": 0.059990145769129845,
+      "cv_accuracy_mean": 0.7942073799216657,
+      "cv_accuracy_std": 0.04381306879910858
+    },
+    {
+      "model": "DecisionTreeClassifier",
+      "params": {
+        "model__max_depth": 3,
+        "model__min_samples_leaf": 1
+      },
+      "cv_roc_auc_mean": 0.6853193944886573,
+      "cv_roc_auc_std": 0.08402597884206323,
+      "cv_f1_mean": 0.8639702969528372,
+      "cv_f1_std": 0.028712809919932504,
+      "cv_balanced_accuracy_mean": 0.6849821575235776,
+      "cv_balanced_accuracy_std": 0.06511691781948968,
+      "cv_accuracy_mean": 0.7901875901875901,
+      "cv_accuracy_std": 0.04782734980447393
+    },
+    {
+      "model": "DummyClassifier",
+      "params": {},
+      "cv_roc_auc_mean": 0.5,
+      "cv_roc_auc_std": 0.0,
+      "cv_f1_mean": 0.8140024004564802,
+      "cv_f1_std": 0.0027775963857648925,
+      "cv_balanced_accuracy_mean": 0.5,
+      "cv_balanced_accuracy_std": 0.0,
+      "cv_accuracy_mean": 0.686353329210472,
+      "cv_accuracy_std": 0.003960415467327554
+    }
+  ],
+  "test_metrics": {
+    "accuracy": 0.8536585365853658,
+    "precision": 0.8316831683168316,
+    "recall": 0.9882352941176471,
+    "f1": 0.9032258064516129,
+    "balanced_accuracy": 0.7704334365325078,
+    "roc_auc": 0.8538699690402477,
+    "average_precision": 0.8906922356786766,
+    "confusion_matrix": [
+      [
+        21,
+        17
+      ],
+      [
+        1,
+        84
+      ]
+    ],
+    "true_negative": 21,
+    "false_positive": 17,
+    "false_negative": 1,
+    "true_positive": 84
+  },
+  "class_distribution": {
+    "train": {
+      "approved": 337,
+      "rejected": 154
+    },
+    "test": {
+      "approved": 85,
+      "rejected": 38
+    }
+  },
+  "rows": {
+    "bad_target_rows": 0,
+    "duplicate_rows": 0,
+    "rows_used": 614
+  },
+  "input_schema": [
+    {
+      "name": "ApplicantIncome",
+      "kind": "number",
+      "median": 3859.0,
+      "minimum": 210.0,
+      "maximum": 81000.0
+    },
+    {
+      "name": "CoapplicantIncome",
+      "kind": "number",
+      "median": 1032.0,
+      "minimum": 0.0,
+      "maximum": 41667.0
+    },
+    {
+      "name": "LoanAmount",
+      "kind": "number",
+      "median": 128.0,
+      "minimum": 9.0,
+      "maximum": 700.0
+    },
+    {
+      "name": "Loan_Amount_Term",
+      "kind": "number",
+      "median": 360.0,
+      "minimum": 12.0,
+      "maximum": 480.0
+    },
+    {
+      "name": "Married",
+      "kind": "category",
+      "options": [
+        "No",
+        "Yes"
+      ],
+      "mode": "Yes"
+    },
+    {
+      "name": "Dependents",
+      "kind": "category",
+      "options": [
+        "0",
+        "1",
+        "2",
+        "3+"
+      ],
+      "mode": "0"
+    },
+    {
+      "name": "Education",
+      "kind": "category",
+      "options": [
+        "Graduate",
+        "Not Graduate"
+      ],
+      "mode": "Graduate"
+    },
+    {
+      "name": "Self_Employed",
+      "kind": "category",
+      "options": [
+        "No",
+        "Yes"
+      ],
+      "mode": "No"
+    },
+    {
+      "name": "Credit_History",
+      "kind": "category",
+      "options": [
+        "0",
+        "1"
+      ],
+      "mode": "1"
+    },
+    {
+      "name": "Property_Area",
+      "kind": "category",
+      "options": [
+        "Rural",
+        "Semiurban",
+        "Urban"
+      ],
+      "mode": "Semiurban"
+    }
+  ],
+  "reference_values": {
+    "ApplicantIncome": 3859.0,
+    "CoapplicantIncome": 1032.0,
+    "LoanAmount": 128.0,
+    "Loan_Amount_Term": 360.0,
+    "Married": "Yes",
+    "Dependents": "0",
+    "Education": "Graduate",
+    "Self_Employed": "No",
+    "Credit_History": "1",
+    "Property_Area": "Semiurban"
+  },
+  "causation_note": "Feature importance and the one-row explanation show association inside this model. They do not show that a feature causes approval, and they do not show what a lender should do.",
+  "imbalance_handling": "class_weight is left off so the fit is not pushed away from accuracy. The dummy most-frequent baseline shows the accuracy you get by always predicting approval. SMOTE is not used."
+}

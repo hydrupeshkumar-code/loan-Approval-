@@ -1,0 +1,43 @@
+{
+  "dataset_name": "Analytics Vidhya Loan Prediction (Dream Housing Finance)",
+  "original_source_url": "https://datahack.analyticsvidhya.com/contest/practice-problem-loan-prediction-iii/",
+  "direct_download_url": "https://raw.githubusercontent.com/shrikant-temburwar/Loan-Prediction-Dataset/master/train.csv",
+  "repository_or_provider": "GitHub mirror of the Analytics Vidhya practice problem",
+  "repository": "https://github.com/shrikant-temburwar/Loan-Prediction-Dataset",
+  "licence": "The GitHub mirror does not contain a licence file (GitHub's license API returns 404). The table is the public Analytics Vidhya practice problem Loan Prediction, published for learning. This project uses it for coursework, demonstration, and portfolios. Check Analytics Vidhya's current terms before any commercial use, and do not treat this mirror as an official data licence.",
+  "download_date": "2026-11-05T16:04:33+00:00",
+  "sha256": "8c2cc67a13279ec746b15f76f14e8503154274ef7f221d2437033b4407c80ca8",
+  "original_filename": "train.csv",
+  "dimensions": {
+    "rows": 614,
+    "columns": 13
+  },
+  "column_names": [
+    "Loan_ID",
+    "Gender",
+    "Married",
+    "Dependents",
+    "Education",
+    "Self_Employed",
+    "ApplicantIncome",
+    "CoapplicantIncome",
+    "LoanAmount",
+    "Loan_Amount_Term",
+    "Credit_History",
+    "Property_Area",
+    "Loan_Status"
+  ],
+  "target_column": "Loan_Status",
+  "description": "Home-loan applications with applicant and co-applicant income, loan amount and term, credit history, education, employment, dependents, property area, and a binary loan decision. Loan_Status Y means approved and N means rejected. Gender is present for audit and is not used as a model input.",
+  "local_path": "data/raw/loan_prediction.csv",
+  "github_verification": {
+    "checked": true,
+    "verified": true,
+    "api_url": "https://api.github.com/repos/shrikant-temburwar/Loan-Prediction-Dataset/contents/train.csv?ref=master",
+    "download_url": "https://raw.githubusercontent.com/shrikant-temburwar/Loan-Prediction-Dataset/master/train.csv",
+    "size": 38013,
+    "sha": "5dce665143bd45c6436647f525a0158a21191122",
+    "html_url": "https://github.com/shrikant-temburwar/Loan-Prediction-Dataset/blob/master/train.csv"
+  },
+  "licence_limitation": "Unclear SPDX licence on the mirror. Documented here instead of ignored. UCI Statlog German Credit was not used: it is a different credit-risk table."
+}
