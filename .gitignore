@@ -12,7 +12,7 @@ data/raw/*.csv
 data/raw/*.part
 data/processed/*.csv
 data/sample/*.csv
-artifacts/*.joblib
+# The trained model (about 145 KB) is committed so the deployed app can load it.
 
 # Official test file from the same unlicensed mirror, and predictions that copy its rows.
 data/external/*.csv
