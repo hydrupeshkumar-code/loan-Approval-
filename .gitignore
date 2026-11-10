@@ -15,6 +15,6 @@ data/sample/*.csv
 # The trained model (about 145 KB) is committed so the deployed app can load it.
 
 # Official test file from the same unlicensed mirror, and predictions that copy its rows.
-data/external/*.csv
+data/external/**/*.csv
 reports/external_test_predictions.csv
 *.egg-info/

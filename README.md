@@ -222,6 +222,28 @@ Every prediction also gets a `Review_Note` when a human should double-check it: 
 - **Calibration:** Brier score 0.124; sigmoid calibration only improves it to 0.117, so the model is kept as it is.
 - **Missing credit history:** 50 applications, 74% of them approved, close to the overall 69%, so filling with the most common value is reasonable.
 
+## Extra experiment: a larger real dataset (HMDA)
+
+To check whether more data helps, the same method was run on **HMDA**, the US public mortgage records published by the CFPB: all 2023 applications in Delaware that ended in a decision (30,784 rows, 73.9% approved). `python experiments/hmda_experiment.py --download` fetches the data (about 12 MB, not committed) and writes `reports/hmda_experiment.md`.
+
+Same rules as the main project: 80/20 stratified split, models and cut-off chosen on training cross-validation only, test set used once.
+
+| | Main project | HMDA experiment |
+| --- | --- | --- |
+| Rows | 614 | 30,784 |
+| Best model | Random Forest | HistGradientBoosting |
+| Baseline (always approve) | 69% | 73.9% |
+| Test accuracy | 85.4% | 86.4% |
+| Precision | 83.2% | 86.6% |
+| ROC-AUC | 0.854 | 0.889 |
+| Rejections caught (standard / cautious) | 21 / 32 of 38 | 927 / 1,180 of 1,608 |
+| Most important field | Credit history | Debt-to-income ratio |
+
+- Cross-validation (86.3%) and test (86.4%) agree, so with 6,157 test rows the estimate is far more stable than on 123.
+- The model relies on debt-to-income, loan purpose and loan-to-value, the factors real lenders check.
+- **Leakage precautions:** fields filled in after the decision (interest rate, costs, denial reasons, purchaser) are excluded, and race, ethnicity, sex and age are not model inputs. Loan-to-value is missing more often for denied applications, so the model was refit on the 26,743 complete rows: 87.0% accuracy, ROC-AUC 0.885. The result does not come from missing values.
+- Even 30,000 real decisions do not reach 90%: HMDA has no credit score, and lender decisions depend on things no dataset records.
+
 ## Explainability
 
 - Global: permutation importance of the input fields, plus the forest's own transformed-column importances (`reports/feature_importance.md`).
@@ -248,6 +270,7 @@ python scripts/download_data.py
 python -m src.loan_approval.train
 python scripts/run_eda.py
 python scripts/robustness_checks.py
+python experiments/hmda_experiment.py --download
 pytest -q
 streamlit run app.py
 ```
@@ -275,14 +298,14 @@ Those screens depend on the local Streamlit session, so they are not stored as f
 - Cross-validation scores used for the search are slightly optimistic. Nested CV (80.6%) gives the honest estimate.
 - The dataset has no debts, savings or credit score, so the model leans almost entirely on credit history. Cautious mode reduces wrong approvals but costs accuracy.
 - Probabilities are only roughly calibrated (see the robustness report).
-- The app runs locally; it is not deployed and does not monitor incoming data beyond the out-of-range flag.
+- The app does not monitor incoming data beyond the out-of-range flag.
 - The data mirror has no SPDX licence.
 
 ## Future improvements
 
 - Collect richer, newer data (debts, savings, credit score, employment) — the main lever for accuracy.
 - Replace the cautious cut-off with a cost matrix once a real lender states its costs.
-- Deploy the app online (for example Streamlit Community Cloud).
+- Train the app's model on a large real dataset with a credit score (the HMDA experiment shows the method scales).
 - Repeat the fairness audit on a larger book before anyone treats a gap as stable.
 
 ## Ethical considerations

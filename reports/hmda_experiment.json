@@ -1,0 +1,116 @@
+{
+  "dataset": {
+    "name": "HMDA 2023, Delaware (CFPB public loan-level data)",
+    "url": "https://ffiec.cfpb.gov/v2/data-browser-api/view/csv?states=DE&years=2023&actions_taken=1,2,3",
+    "rows": 30784,
+    "approved_share": 0.7388253638253638,
+    "features_used": [
+      "loan_amount",
+      "income",
+      "property_value",
+      "loan_to_value_ratio",
+      "loan_term",
+      "debt_to_income",
+      "tract_to_msa_income_percentage",
+      "ffiec_msa_md_median_family_income",
+      "loan_type",
+      "loan_purpose",
+      "lien_status",
+      "occupancy_type",
+      "construction_method",
+      "total_units",
+      "open-end_line_of_credit",
+      "business_or_commercial_purpose",
+      "preapproval",
+      "submission_of_application"
+    ]
+  },
+  "comparison": [
+    {
+      "model": "HistGradientBoosting",
+      "cv_accuracy": 0.862630446258172,
+      "cv_roc_auc": 0.8862371511841727
+    },
+    {
+      "model": "Random Forest",
+      "cv_accuracy": 0.8621431761887359,
+      "cv_roc_auc": 0.8817428427045865
+    },
+    {
+      "model": "Logistic Regression",
+      "cv_accuracy": 0.7987574613229382,
+      "cv_roc_auc": 0.7991172238901674
+    },
+    {
+      "model": "Baseline (always approve)",
+      "cv_accuracy": 0.7388232427823122,
+      "cv_roc_auc": 0.5
+    }
+  ],
+  "chosen_model": "HistGradientBoosting",
+  "threshold": 0.5,
+  "cautious_threshold": 0.71,
+  "test": {
+    "accuracy": 0.8637323371771967,
+    "precision": 0.8657334384858044,
+    "recall": 0.9652670916684986,
+    "f1": 0.9127949277621868,
+    "balanced_accuracy": 0.7708798144909657,
+    "roc_auc": 0.8886580780424105,
+    "rejections_caught": 927,
+    "rejections_total": 1608,
+    "approvals_wrongly_rejected": 158
+  },
+  "test_cautious": {
+    "accuracy": 0.8367711547831737,
+    "precision": 0.9027272727272727,
+    "recall": 0.8731589360298967,
+    "f1": 0.887696949379819,
+    "balanced_accuracy": 0.8034948909005205,
+    "roc_auc": 0.8886580780424105,
+    "rejections_caught": 1180,
+    "rejections_total": 1608,
+    "approvals_wrongly_rejected": 577
+  },
+  "importance": [
+    {
+      "feature": "debt_to_income",
+      "importance": 0.13225438664035158
+    },
+    {
+      "feature": "loan_purpose",
+      "importance": 0.07297494139599407
+    },
+    {
+      "feature": "loan_to_value_ratio",
+      "importance": 0.040992698887435765
+    },
+    {
+      "feature": "preapproval",
+      "importance": 0.02054618721285384
+    },
+    {
+      "feature": "income",
+      "importance": 0.014260452856944142
+    },
+    {
+      "feature": "construction_method",
+      "importance": 0.012385336946740488
+    },
+    {
+      "feature": "property_value",
+      "importance": 0.011864380285432944
+    },
+    {
+      "feature": "open-end_line_of_credit",
+      "importance": 0.009465798939483147
+    }
+  ],
+  "complete_rows_check": {
+    "rows": 26743,
+    "approved_share": 0.7731742885988857,
+    "test_accuracy": 0.8696952701439521,
+    "test_roc_auc": 0.8846838369309908
+  },
+  "seconds": 136.3
+}
