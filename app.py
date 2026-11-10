@@ -10,11 +10,13 @@ import streamlit as st
 
 from src.loan_approval.config import CREDIT_LABELS, FIELD_HELP, FIELD_LABELS, Paths
 from src.loan_approval.explainability import local_explanation, make_shap_explainer, shap_explanation
+from src.loan_approval.loan_costs import estimate_loan_cost
 from src.loan_approval.predict import DISCLAIMER, load_model, review_notes, score_frame
+from src.loan_approval.rates import RATE_CATALOG, RATE_CHECKED_ON
 from src.loan_approval.utils import ModelNotFoundError
 
 st.set_page_config(
-    page_title="Loan Approval Prediction System",
+    page_title="Loan Planning and Decision Support",
     page_icon="🏦",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -106,15 +108,15 @@ chips = ""
 if metrics:
     chips = (
         f"<span class='chip'>Model: <b>{html.escape(model_label)}</b></span>"
-        f"<span class='chip'>Test accuracy: <b>{pct(metrics['accuracy'])}</b></span>"
+        f"<span class='chip'>Historical test accuracy: <b>{pct(metrics['accuracy'])}</b></span>"
         f"<span class='chip'>ROC-AUC: <b>{float(metrics['roc_auc']):.3f}</b></span>"
         f"<span class='chip'>Trained on: <b>{rows_total} real applications</b></span>"
     )
 st.markdown(
     f"""
     <div class="hero">
-      <h1>🏦 LOAN APPROVAL PREDICTION SYSTEM</h1>
-      <p>Enter an applicant's details and a machine-learning model estimates whether the home loan is likely to be approved.</p>
+      <h1>🏦 LOAN PLANNING &amp; DECISION SUPPORT</h1>
+      <p>Explore a historical home-loan model estimate and calculate repayment scenarios. This app cannot approve a loan or quote a lender's offer.</p>
       <div class="chips">{chips}</div>
     </div>
     """,
@@ -126,28 +128,27 @@ with st.sidebar:
     st.markdown("### How to use")
     st.markdown(
         "1. Pick an **example applicant** or type your own values.\n"
-        "2. Click **Predict loan status**.\n"
-        "3. Read the result, the probability and **why** the model decided that.\n"
-        "4. Explore the other tabs for model performance and insights."
+        "2. View how the applicant compares with historical home-loan labels.\n"
+        "3. Use **EMI calculator** to explore advertised-rate repayment scenarios.\n"
+        "4. Explore model performance and limitations."
     )
     st.divider()
-    st.markdown("### Decision mode")
+    st.markdown("### Historical score threshold")
     modes = {"Standard": standard_threshold}
     if cautious_threshold is not None:
         modes["Cautious"] = float(cautious_threshold)
     mode = st.radio(
-        "Decision mode",
+        "Score threshold",
         list(modes),
         format_func=lambda name: f"{name} (cut-off {modes[name]:.0%})",
         label_visibility="collapsed",
-        help="Standard gives the best overall accuracy. Cautious approves fewer people, so it catches "
-        "more of the applications lenders rejected, at the cost of some accuracy.",
+        help="These thresholds change the model's historical-label estimate only. They are not underwriting rules.",
     )
     threshold = modes[mode]
     active_metrics = cautious_metrics if mode == "Cautious" and cautious_metrics else metrics
     if active_metrics:
         st.caption(
-            f"On the test set: accuracy {pct(active_metrics['accuracy'])}, precision "
+            f"On the historical test set: accuracy {pct(active_metrics['accuracy'])}, precision "
             f"{pct(active_metrics['precision'])}, risky applications caught "
             f"{active_metrics['true_negative']} of {active_metrics['true_negative'] + active_metrics['false_positive']}."
         )
@@ -156,8 +157,8 @@ with st.sidebar:
     if metrics:
         st.markdown(
             f"- **Algorithm:** {model_label}\n"
-            f"- **Test accuracy:** {pct(metrics['accuracy'])} (baseline 69%)\n"
-            f"- **Approval cut-off:** {threshold:.0%} ({mode.lower()} mode)\n"
+            f"- **Historical test accuracy:** {pct(metrics['accuracy'])} (baseline 69%)\n"
+            f"- **Historical-label score cut-off:** {threshold:.0%}\n"
             "- **Most important field:** credit history"
         )
     st.divider()
@@ -167,8 +168,15 @@ if model_error:
     st.error(model_error)
     st.stop()
 
-tab_predict, tab_perf, tab_insights, tab_batch, tab_about = st.tabs(
-    ["🔮 Predict", "📊 Model performance", "🧠 Model insights", "📁 Batch prediction", "ℹ️ About the project"]
+tab_predict, tab_perf, tab_insights, tab_costs, tab_batch, tab_about = st.tabs(
+    [
+        "📊 Historical estimate",
+        "📈 Model performance",
+        "🧠 Model insights",
+        "💸 EMI calculator",
+        "📁 Batch estimate",
+        "ℹ️ About the project",
+    ]
 )
 
 # ---------------------------------------------------------------- prediction tab
@@ -306,7 +314,9 @@ with tab_predict:
                 with b:
                     number_field("Loan_Amount_Term")
                 choice_field("Credit_History")
-            submitted = st.form_submit_button("🔍 Predict loan status", type="primary", width="stretch")
+            submitted = st.form_submit_button(
+                "🔍 Estimate historical pattern", type="primary", width="stretch"
+            )
 
     if submitted:
         values: dict[str, object] = {}
@@ -326,17 +336,17 @@ with tab_predict:
     with result_col:
         result = st.session_state.get("result")
         if result:
-            # Status and review notes follow the decision mode chosen in the sidebar.
+            # The threshold changes only the historical-label estimate.
             result["status"] = "Approved" if result["probability"] >= threshold else "Rejected"
             result["notes"] = review_notes(
                 pd.DataFrame([result["values"]]), [result["probability"]], threshold, metadata
             )[0]
         if not result:
             with st.container(border=True):
-                st.markdown("#### Result")
+                st.markdown("#### Historical-pattern estimate")
                 st.markdown(
-                    "<p class='muted'>Fill in the form and click <b>Predict loan status</b>. "
-                    "The decision, the approval probability and the main reasons will appear here.</p>",
+                    "<p class='muted'>Fill in the form to see how this application compares with historical "
+                    "approved/rejected labels and which fields influence the model score. This is not a lender decision.</p>",
                     unsafe_allow_html=True,
                 )
                 st.markdown(
@@ -352,10 +362,10 @@ with tab_predict:
             st.markdown(
                 f"""
                 <div class="result {css}">
-                  <div class="label">Predicted loan status</div>
-                  <div class="status">{icon} {result['status']}</div>
-                  <div class="prob">Estimated probability of approval: <b>{probability:.1%}</b>
-                    · {mode.lower()} mode</div>
+                  <div class="label">Historical-label estimate — not a lender decision</div>
+                  <div class="status">{icon} More similar to historically {result['status'].lower()} applications</div>
+                  <div class="prob">Model score for the historical approval label: <b>{probability:.1%}</b>
+                    · {mode.lower()} threshold</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -373,9 +383,9 @@ with tab_predict:
                   <div class="fill" style="width:{probability * 100:.1f}%; background:{colour};"></div>
                   <div class="mark" style="left:calc({threshold * 100:.0f}% - 1px);" title="cut-off"></div>
                 </div>
-                <div class="gauge-legend"><span>0% · reject</span>
-                  <span class="cut" style="left:{threshold * 100:.0f}%;">▲ cut-off {threshold:.0%}</span>
-                  <span>approve · 100%</span></div>
+                <div class="gauge-legend"><span>0% · rejected-label pattern</span>
+                  <span class="cut" style="left:{threshold * 100:.0f}%;">▲ score cut-off {threshold:.0%}</span>
+                  <span>approved-label pattern · 100%</span></div>
                 """,
                 unsafe_allow_html=True,
             )
@@ -405,7 +415,7 @@ with tab_predict:
                 if abs(rest) >= 0.0005:
                     rows.append((f"{len(shap_items) - 6} other fields", rest))
                 st.markdown(contribution_bars(rows), unsafe_allow_html=True)
-                st.caption("Values are percentage points of approval probability. They add up exactly from the "
+                st.caption("Values are percentage points of the model's historical approval-label score. They add up exactly from the "
                            "average to this applicant's probability.")
             items = result["explanation"][:5]
             with st.expander("What if? Swap one field for a typical value"):
@@ -432,7 +442,7 @@ with tab_perf:
     test_rows = sum(sum(row) for row in metrics["confusion_matrix"])
     st.markdown(
         f"Scores of the **{model_label}** on **{test_rows} test applications it never saw during training**, "
-        f"using the approval cut-off of {threshold:.0%}."
+        f"using the historical-label score cut-off of {threshold:.0%}."
     )
     cards = st.columns(5)
     explained = [
@@ -454,15 +464,15 @@ with tab_perf:
         fn, tp = metrics["confusion_matrix"][1]
         matrix = pd.DataFrame(
             [[tn, fp], [fn, tp]],
-            index=["Actually rejected", "Actually approved"],
-            columns=["Predicted rejected", "Predicted approved"],
+            index=["Historical label: rejected", "Historical label: approved"],
+            columns=["Model: rejected-like", "Model: approved-like"],
         )
         st.dataframe(matrix, width="stretch")
         st.markdown(
             f"- ✅ **{tn + tp}** of {tn + fp + fn + tp} correct ({pct(metrics['accuracy'])})\n"
-            f"- ⚠️ **{fp}** rejected applications the model would approve (false positives)\n"
-            f"- ⚠️ **{fn}** approved application(s) the model would reject (false negatives)\n"
-            "- All false positives had a good credit history: the model rejects almost only on credit history."
+            f"- ⚠️ **{fp}** historically rejected applications classified as approved-like (false positives)\n"
+            f"- ⚠️ **{fn}** historically approved applications classified as rejected-like (false negatives)\n"
+            "- All false positives had a good credit history: this model's historical-label errors are strongly tied to credit history."
         )
     with right:
         image = PATHS.reports / "confusion_matrix.png"
@@ -478,7 +488,7 @@ with tab_perf:
         if image.exists():
             column.image(str(image), caption=caption, width="stretch")
 
-    st.markdown("#### Standard vs cautious decision mode")
+    st.markdown("#### Standard vs cautious historical-label threshold")
     if cautious_metrics:
         def mode_row(name: str, cut: float, scores: dict) -> dict:
             return {
@@ -487,8 +497,8 @@ with tab_perf:
                 "Accuracy": pct(scores["accuracy"]),
                 "Precision": pct(scores["precision"]),
                 "Recall": pct(scores["recall"]),
-                "Risky applications caught": f"{scores['true_negative']} of {scores['true_negative'] + scores['false_positive']}",
-                "Good applications wrongly rejected": scores["false_negative"],
+                "Historical rejections classified rejected-like": f"{scores['true_negative']} of {scores['true_negative'] + scores['false_positive']}",
+                "Historical approvals classified rejected-like": scores["false_negative"],
             }
 
         st.dataframe(
@@ -500,16 +510,16 @@ with tab_perf:
             width="stretch",
         )
         st.caption(
-            "Both cut-offs were chosen on training data only. Cautious mode catches more of the applications "
-            "lenders rejected, which matters because a wrong approval usually costs a bank more than a wrong "
-            "rejection, but it also turns away more good applicants."
+            "Both cut-offs were chosen on training data only. Cautious mode classifies more historical "
+            "rejections as rejected-like and also classifies more historical approvals as rejected-like. "
+            "This trade-off is descriptive, not a lender's risk policy."
         )
 
     predictions_file = PATHS.reports / "test_predictions.csv"
     if predictions_file.exists():
-        st.markdown("#### Try your own cut-off")
+        st.markdown("#### Explore a historical-label score cut-off")
         test_scores = pd.read_csv(predictions_file)
-        chosen = st.slider("Approve when probability is at least", 0.05, 0.95, float(threshold), 0.01)
+        chosen = st.slider("Classify as approved-like when score is at least", 0.05, 0.95, float(threshold), 0.01)
         predicted = test_scores["approval_probability"] >= chosen
         actual = test_scores["actual_approved"] == 1
         tp, fp = int((predicted & actual).sum()), int((predicted & ~actual).sum())
@@ -517,10 +527,10 @@ with tab_perf:
         s1, s2, s3, s4 = st.columns(4)
         s1.metric("Accuracy", pct((tp + tn) / len(test_scores)))
         s2.metric("Precision", pct(tp / (tp + fp)) if tp + fp else "n/a")
-        s3.metric("Risky caught", f"{tn} of {tn + fp}")
-        s4.metric("Good wrongly rejected", f"{fn} of {fn + tp}")
-        st.caption("Computed on the 123 test applications. This explorer is for understanding the trade-off; "
-                   "the two saved modes were chosen without looking at the test set.")
+        s3.metric("Historical rejections classified rejected-like", f"{tn} of {tn + fp}")
+        s4.metric("Historical approvals classified rejected-like", f"{fn} of {fn + tp}")
+        st.caption("Computed on the 123 historical test applications. This explorer illustrates the trade-off; "
+                   "these are not lender approval rules.")
 
 # ---------------------------------------------------------------- insights tab
 with tab_insights:
@@ -684,13 +694,109 @@ with tab_insights:
             "old labels can still carry it.\n"
             "- In practice the model rejects almost only on credit history, so it approves some applicants "
             "that lenders rejected. Cautious mode reduces this at the cost of accuracy.\n"
-            "- The dataset has no debts, savings or credit score, so about 85% accuracy is the ceiling here.\n"
-            "- Cross-validation scores used to pick the model are slightly optimistic. Quote the test metrics."
+            "- The dataset has no debts, savings or a modern credit score. The 85.4% test accuracy is from one "
+            "small historical split and is not a real-world performance guarantee.\n"
+            "- Cross-validation scores used to pick the model are slightly optimistic. Test metrics describe "
+            "this dataset only, not future or personal-loan applicants."
         )
+
+# ---------------------------------------------------------------- EMI calculator tab
+with tab_costs:
+    st.markdown("#### Estimate your monthly repayment")
+    st.warning(
+        "This is a fixed-rate EMI scenario, not an eligibility check, approval, or personalized lender quote. "
+        "Advertised rates depend on credit profile, loan size, lender policy, and other terms."
+    )
+
+    product = st.selectbox("Loan type", list(RATE_CATALOG))
+    lender_options = RATE_CATALOG[product]
+    lender_name = st.selectbox(
+        "Published rate source",
+        [item["lender"] for item in lender_options],
+    )
+    lender = next(item for item in lender_options if item["lender"] == lender_name)
+    low_rate = float(lender["minimum"])
+    high_rate = float(lender["maximum"])
+    st.markdown(
+        f"**Published annual rate range:** {low_rate:.2f}%–{high_rate:.2f}% p.a.  \n"
+        f"**Source:** [{lender['lender']} rates page]({lender['source']})"
+    )
+    st.caption(
+        f"Rates checked {RATE_CHECKED_ON}. {lender['validity']} {lender['details']} "
+        "Verify the lender page before using these figures."
+    )
+
+    rate = st.slider(
+        "Annual interest-rate scenario (%)",
+        min_value=low_rate,
+        max_value=high_rate,
+        value=round((low_rate + high_rate) / 2, 2),
+        step=0.01,
+        key=f"rate_{product}_{lender_name}",
+    )
+    default_term = 240 if product == "Home / mortgage" else 36
+    max_term = 360 if product == "Home / mortgage" else 84
+    amount_col, term_col = st.columns(2)
+    with amount_col:
+        principal = st.number_input(
+            "Loan amount (₹)",
+            min_value=10_000,
+            max_value=100_000_000,
+            value=3_000_000 if product == "Home / mortgage" else 500_000,
+            step=100_000,
+            key=f"principal_{product}",
+        )
+    with term_col:
+        term_months = st.number_input(
+            "Term (months)",
+            min_value=1,
+            max_value=max_term,
+            value=default_term,
+            step=1,
+            key=f"term_{product}",
+        )
+    income_col, debt_col = st.columns(2)
+    with income_col:
+        monthly_income = st.number_input(
+            "Monthly take-home income (₹; optional)",
+            min_value=0,
+            value=0,
+            step=5_000,
+            help="Used only to show the estimated EMI-to-income share, not to decide eligibility.",
+        )
+    with debt_col:
+        other_emis = st.number_input(
+            "Other monthly loan payments (₹; optional)",
+            min_value=0,
+            value=0,
+            step=1_000,
+            help="Optional existing monthly EMI total for a simple debt-payment share.",
+        )
+
+    estimate = estimate_loan_cost(float(principal), rate, int(term_months))
+    payment_col, interest_col, total_col = st.columns(3)
+    payment_col.metric("Estimated monthly EMI", f"₹{estimate.monthly_payment:,.0f}")
+    interest_col.metric("Estimated total interest", f"₹{estimate.total_interest:,.0f}")
+    total_col.metric("Estimated total repayment", f"₹{estimate.total_repayment:,.0f}")
+    if monthly_income > 0:
+        payment_share = estimate.monthly_payment / monthly_income
+        debt_share = (estimate.monthly_payment + other_emis) / monthly_income
+        st.info(
+            f"New EMI is {payment_share:.1%} of the monthly income entered. "
+            f"Including the other EMI amount entered, monthly loan payments are {debt_share:.1%} of income. "
+            "These ratios are informational and do not determine approval."
+        )
+    st.caption(
+        "EMI assumes equal monthly payments at a constant annual rate: "
+        "EMI = P × r × (1+r)^n / ((1+r)^n − 1), where r is the monthly rate and n is the number of months. "
+        "Fees, insurance, taxes, floating-rate changes, and lender-specific conditions are excluded."
+    )
 
 # ---------------------------------------------------------------- batch tab
 with tab_batch:
-    st.markdown("Score many applicants at once from a CSV file with the same columns as the training data.")
+    st.markdown(
+        "Compare rows with the historical home-loan labels. This batch view is not for screening real applications."
+    )
     st.caption("The uploaded file stays in this browser session. The app does not write it to disk.")
     upload = st.file_uploader("Applicant CSV", type=["csv"])
     use_sample = st.button("Or try the sample file", disabled=not (PATHS.sample / "sample_applicants.csv").exists())
@@ -709,17 +815,26 @@ with tab_batch:
             flagged = int((scored["Review_Note"] != "").sum())
             c1, c2, c3, c4 = st.columns(4)
             c1.metric("Applicants scored", len(scored))
-            c2.metric("Predicted approved", approved)
-            c3.metric("Predicted rejected", len(scored) - approved)
+            c2.metric("Similar to approved history", approved)
+            c3.metric("Similar to rejected history", len(scored) - approved)
             c4.metric("Need manual review", flagged, help="Missing credit history, close to the cut-off, "
                       "or a number outside the range seen in training.")
-            st.caption(f"Using the {mode.lower()} decision mode (cut-off {threshold:.0%}).")
+            st.caption(
+                f"Using the {mode.lower()} historical-label threshold ({threshold:.0%}); "
+                "not lender underwriting criteria."
+            )
+            scored = scored.rename(
+                columns={
+                    "Approval_Probability": "Historical_Approval_Label_Score",
+                    "Predicted_Status": "Historical_Pattern_Label",
+                }
+            )
             st.dataframe(
                 scored.head(50),
                 width="stretch",
                 column_config={
-                    "Approval_Probability": st.column_config.ProgressColumn(
-                        "Approval probability", format="%.2f", min_value=0.0, max_value=1.0
+                    "Historical_Approval_Label_Score": st.column_config.ProgressColumn(
+                        "Historical approval-label score", format="%.2f", min_value=0.0, max_value=1.0
                     )
                 },
             )
@@ -738,7 +853,8 @@ with tab_about:
         st.write(
             "Lenders record applicant income, loan size, credit history and a few personal details, then "
             "approve or reject the loan. This project asks: given those fields, how well can a machine-learning "
-            "model predict the historical decision? It is a coursework model, not a lender's decision system."
+            "model predict the historical decision? It is a coursework model, not a lender's decision system. "
+            "It cannot determine whether you qualify."
         )
         st.markdown("#### How it works")
         st.markdown(
@@ -747,7 +863,12 @@ with tab_about:
             "3. Train five models with 5-fold cross-validation on 80% of the data.\n"
             "4. Pick the best by cross-validated accuracy and tune the approval cut-off.\n"
             "5. Score the chosen model once on the untouched 20% test set.\n"
-            "6. Save the full pipeline and use it in this app."
+            "6. Save the full pipeline and use it only as a historical-pattern demonstration."
+        )
+        st.markdown("#### EMI calculator")
+        st.write(
+            "The separate repayment calculator uses published lender-rate ranges checked on the date shown. "
+            "It applies a fixed-rate EMI formula; it does not predict an applicant's offered rate."
         )
     with right:
         st.markdown("#### Dataset")

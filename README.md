@@ -1,21 +1,21 @@
 # Loan Approval Prediction System Using Machine Learning
 
-A small, reproducible classifier that estimates whether a home-loan application resembles applications that were approved in a public historical table. It is built for a college evaluation, a technical demo, a GitHub portfolio, and machine-learning interviews.
+A small, reproducible classifier that estimates whether a home-loan application resembles applications that were approved in a public historical table. It also includes a separate EMI calculator for home/mortgage and personal-loan scenarios using dated, published Indian lender rate ranges. It is built for a college evaluation, a technical demo, a GitHub portfolio, and machine-learning interviews.
 
-The prediction is a statistical estimate. It is not a lending decision.
+The model is not a lender's decision system: it cannot tell an applicant whether a real lender will approve them or what rate they will be offered. The EMI calculator is a fixed-rate scenario, not an offer or eligibility check.
 
 ## At a glance
 
 | | |
 | --- | --- |
-| **Question** | Given an applicant's income, loan size, credit history and a few personal details, will the loan be approved? |
+| **Question** | How does an application compare with historical home-loan approval labels? |
 | **Type of problem** | Binary classification (Approved = 1, Rejected = 0) |
 | **Data** | 614 real loan applications, 13 columns (Analytics Vidhya "Dream Housing Finance") |
 | **Models compared** | Baseline (always approve), Logistic Regression, Decision Tree, Random Forest, Extra Trees |
 | **Winner** | Random Forest (100 trees, max depth 12, min 5 rows per leaf) |
 | **Test accuracy** | **85.4%** (105 of 123 unseen applications correct), vs 69% for the baseline |
 | **Most important feature** | Credit history: 79.6% approved with good history vs 7.9% without |
-| **Demo** | Streamlit web app: enter an applicant, get Approved/Rejected + probability + reasons |
+| **Demo** | Streamlit web app: historical-label estimate, explanations, lender-rate sources and EMI scenarios |
 
 ## How the code works (walkthrough)
 
@@ -33,19 +33,19 @@ The project runs as a pipeline. Each file does one job:
 | 8. Predict | `src/loan_approval/predict.py` | Loads the saved model and scores new applicants. It never retrains. |
 | 9. Web app | `app.py` | Streamlit dashboard with an applicant form, prediction, metrics, charts and batch CSV upload. |
 | 10. Check | `scripts/robustness_checks.py` | Nested CV, 30 random splits, stronger models, calibration and the credit-history rule. Writes `reports/robustness_report.md`. |
-| Tests | `tests/` | 22 pytest tests covering cleaning, validation, training, prediction, decision modes, review flags and SHAP. |
+| Tests | `tests/` | Pytest coverage for cleaning, validation, training, prediction, decision thresholds, review flags, SHAP and EMI calculations. |
 
 **Why a single Pipeline matters.** Missing-value filling and scaling are learned from the training rows only. When the test set or a new applicant passes through, it gets the training medians and scales. This prevents *data leakage* (information from the test set sneaking into training).
 
-**Why a threshold of 0.36 instead of 0.5?** The model outputs a probability. On training cross-validation, approving at 36% or above gave the highest accuracy, so that cut-off was frozen before the test set was touched.
+**Why a threshold of 0.36 instead of 0.5?** The model outputs a score for the historical approval label. On training cross-validation, classifying scores of 36% or above as approved-like gave the highest accuracy, so that cut-off was frozen before the test set was touched. It is not a lender's underwriting threshold.
 
 ## Demo script (2 minutes)
 
 1. `streamlit run app.py`
-2. On the **Predict** tab, keep the *Typical applicant* example and click **Predict loan status**. Result: *Approved*, about 93%.
-3. Pick the *Poor credit history* example and predict again. Result: *Rejected*, about 12%. The "Why this result?" bars show credit history alone lowered the probability by about 81 points, which matches the EDA (7.9% approval without good credit history).
-4. Pick *Borderline: large loan, low income*. Result: *Approved* at about 47%, just above the 36% cut-off marker.
-5. Open the **Model performance** tab: 85.4% accuracy, the confusion matrix and the ROC/PR curves.
+2. On **Historical estimate**, keep the *Typical applicant* example and click **Estimate historical pattern**. Review the score and reasons; this is not an approval.
+3. Pick *Poor credit history* and estimate again. The "Why this result?" bars show how the model's historical-label score changes.
+4. Open **EMI calculator**, choose a loan type and lender, then enter an amount and term to see a fixed-rate repayment scenario and its source range.
+5. Open **Model performance** for the test accuracy, confusion matrix and ROC/PR curves.
 6. Open the **Model insights** tab: the model comparison table and the feature-importance chart.
 7. Optional: the **Batch prediction** tab scores the sample file in one click.
 
@@ -207,9 +207,29 @@ The model gives a probability; the cut-off turns it into a decision. Both cut-of
 | Standard (maximises accuracy) | 0.36 | 85.4% | 83.2% | 21 of 38 | 1 of 85 |
 | Cautious (maximises balanced accuracy) | 0.71 | 76.4% | 91.2% | 32 of 38 | 23 of 85 |
 
-Cautious mode suits a lender for whom a wrong approval costs more than a wrong rejection. The app has a switch in the sidebar and a cut-off slider on the Model performance tab.
+The "cautious" name describes a statistical threshold that labels more historical rejections as rejected-like; it is not a lender policy. The app has a switch in the sidebar and a cut-off slider on the Model performance tab.
 
 Every prediction also gets a `Review_Note` when a human should double-check it: credit history missing (the pipeline fills it with the most common value), probability within 5 points of the cut-off, or a number outside the range seen in training.
+
+These threshold modes only classify historical labels in a coursework dataset. They must not be used to approve or reject a real applicant.
+
+## Interest-rate and EMI scenarios
+
+The **EMI calculator** is separate from the classifier. It uses the standard fixed-rate amortization formula
+
+`EMI = P × r × (1+r)^n / ((1+r)^n − 1)`
+
+where `P` is principal, `r` is the annual rate divided by 12 and 100, and `n` is the number of monthly payments. It reports estimated EMI, total interest and total repayment. Processing fees, insurance, taxes, and floating-rate changes are excluded.
+
+The app's advertised rate ranges are from lender pages checked on **10 Nov 2026**; they are dated snapshots, not a live feed. The bank pages are human-readable and do not provide a documented rate API. Verify the source pages for current details:
+
+| Product | Lender | Published range shown in app | Source |
+| --- | --- | --- | --- |
+| Home / mortgage | ICICI Bank, standard home loan | 8.75%–10.05% p.a.; spans borrower/loan-size categories, valid through 30 Nov 2026 | [Official rates page](https://www.icici.bank.in/personal-banking/loans/home-loan/interest-rates) |
+| Personal loan | ICICI Bank | 10.25%–16.50% p.a. | [Official rates page](https://www.icici.bank.in/personal-banking/loans/personal-loan/personal-loan-interest-rates) |
+| Personal loan | HDFC Bank, salaried rack rate | 9.99%–24.00% p.a. | [Official rates page](https://www.hdfc.bank.in/personal-loan/interest-rates-and-charges) |
+
+These are not individualized rates. A lender may quote a different rate based on credit history, income, employment, loan amount, term and other eligibility criteria. The current model has no interest-rate labels and is trained only on historical home-loan decisions; it does not predict personal-loan approval or an applicant's offered rate.
 
 ## Robustness checks
 
@@ -281,10 +301,10 @@ The notebook `notebooks/01_exploratory_data_analysis.ipynb` calls the same EDA f
 
 ## Screenshots
 
-The dashboard title is **LOAN APPROVAL PREDICTION SYSTEM**. After `streamlit run app.py`, capture:
+The dashboard title is **LOAN PLANNING & DECISION SUPPORT**. After `streamlit run app.py`, capture:
 
 1. The overview and applicant form.
-2. A prediction, including the probability and the disclaimer.
+2. A historical-label estimate, including its score and disclaimer.
 3. The test metrics and confusion matrix.
 4. The model-comparison table.
 
@@ -294,11 +314,12 @@ Those screens depend on the local Streamlit session, so they are not stored as f
 
 - 614 practice-problem rows, not a live loan book.
 - The historical label may already be biased. The model learns that label.
-- Held-out accuracy is 85.4%, not 90%. Credit history already separates most applications, and the remaining cases overlap. A deeper tree memorizes the training set instead of fixing those cases.
+- Held-out accuracy is 85.4% on one small split, not a guarantee of real-world precision. Credit history already separates most applications, and the remaining cases overlap. A deeper tree memorizes the training set instead of fixing those cases.
 - Cross-validation scores used for the search are slightly optimistic. Nested CV (80.6%) gives the honest estimate.
-- The dataset has no debts, savings or credit score, so the model leans almost entirely on credit history. Cautious mode reduces wrong approvals but costs accuracy.
+- The dataset has no debts, savings or a modern credit score, so the model leans almost entirely on credit history. Changing the score threshold changes historical-label errors; it does not improve the training data.
 - Probabilities are only roughly calibrated (see the robustness report).
 - The app does not monitor incoming data beyond the out-of-range flag.
+- Published rate ranges are a dated snapshot and must be checked on the lender pages. The EMI output is not an interest-rate prediction or lender offer.
 - The data mirror has no SPDX licence.
 
 ## Future improvements
@@ -310,4 +331,4 @@ Those screens depend on the local Streamlit session, so they are not stored as f
 
 ## Ethical considerations
 
-Do not use this app to approve or reject a real applicant. Gender is excluded from the inputs and is still a poor fairness guarantee, because marital status, dependents, income, property area, and the old labels can proxy for protected characteristics. The app tells the user the score is not a lending decision. Uploaded batch files are not written to disk by the app.
+Do not use this app to approve or reject a real applicant or treat the EMI estimate as a lender offer. Gender is excluded from the inputs and is still a poor fairness guarantee, because marital status, dependents, income, property area, and the old labels can proxy for protected characteristics. The app labels model outputs as historical estimates. Uploaded batch files are not written to disk by the app.
