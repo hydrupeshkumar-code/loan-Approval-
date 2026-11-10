@@ -4,6 +4,15 @@ A small, reproducible classifier that estimates whether a home-loan application 
 
 The model is not a lender's decision system: it cannot tell an applicant whether a real lender will approve them or what rate they will be offered. The EMI calculator is a fixed-rate scenario, not an offer or eligibility check.
 
+**Live app:** https://loan-approval-hydrupesh.streamlit.app/
+
+## Team
+
+| Name | Roll number |
+| --- | --- |
+| Rupesh Kumar | 24STUCH010715 |
+| Yarram Rohit Reddy | 24STUCHH010037 |
+
 ## At a glance
 
 | | |
