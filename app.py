@@ -607,6 +607,76 @@ with tab_insights:
             f"{calibration['brier_sigmoid_calibrated']:.3f}). Full details: reports/robustness_report.md."
         )
 
+    hmda_file = PATHS.reports / "hmda_experiment.json"
+    if hmda_file.exists():
+        st.markdown("#### Does more data help? 30,784 real mortgage decisions")
+        hmda = json.loads(hmda_file.read_text(encoding="utf-8"))
+        main, big = metadata["test_metrics"], hmda["test"]
+        main_rejected = main["true_negative"] + main["false_positive"]
+        st.markdown(
+            "The same method (80/20 split, model and cut-off chosen on training cross-validation, test set used once) "
+            f"was run on **HMDA**, the public US mortgage records: every 2023 application in Delaware that ended "
+            f"in a decision, {hmda['dataset']['rows']:,} rows. It is a separate experiment; the app's model is unchanged."
+        )
+        h1, h2, h3, h4 = st.columns(4)
+        h1.metric("Test accuracy", f"{big['accuracy']:.1%}", f"{big['accuracy'] - main['accuracy']:+.1%} vs this app")
+        h2.metric("ROC-AUC", f"{big['roc_auc']:.3f}", f"{big['roc_auc'] - main['roc_auc']:+.3f} vs this app")
+        h3.metric("Precision", f"{big['precision']:.1%}", f"{big['precision'] - main['precision']:+.1%} vs this app")
+        h4.metric("Test rows", f"{round(hmda['dataset']['rows'] * 0.2):,}", help="This app's test set has 123 rows.")
+        side = pd.DataFrame(
+            {
+                "": ["Rows", "Baseline (always approve)", "Test accuracy", "Precision", "ROC-AUC", "Rejections caught", "Most important field"],
+                "This app (Dream Housing)": [
+                    f"{metadata['rows']['rows_used']:,}",
+                    "69%",
+                    f"{main['accuracy']:.1%}",
+                    f"{main['precision']:.1%}",
+                    f"{main['roc_auc']:.3f}",
+                    f"{main['true_negative']} of {main_rejected}",
+                    "Credit history",
+                ],
+                "HMDA experiment": [
+                    f"{hmda['dataset']['rows']:,}",
+                    f"{hmda['dataset']['approved_share']:.1%}",
+                    f"{big['accuracy']:.1%}",
+                    f"{big['precision']:.1%}",
+                    f"{big['roc_auc']:.3f}",
+                    f"{big['rejections_caught']:,} of {big['rejections_total']:,}",
+                    "Debt-to-income ratio",
+                ],
+            }
+        )
+        st.dataframe(side, hide_index=True, width="stretch")
+        hmda_labels = {
+            "debt_to_income": "Debt-to-income ratio",
+            "loan_purpose": "Loan purpose",
+            "loan_to_value_ratio": "Loan-to-value ratio",
+            "preapproval": "Preapproval requested",
+            "income": "Income",
+            "construction_method": "Construction method",
+            "property_value": "Property value",
+            "open-end_line_of_credit": "Line of credit",
+        }
+        hmda_importance = pd.DataFrame(hmda["importance"]).head(8)
+        hmda_importance["Field"] = hmda_importance["feature"].map(lambda name: hmda_labels.get(name, name))
+        st.bar_chart(
+            hmda_importance.rename(columns={"importance": "Drop in ROC-AUC when shuffled"}),
+            x="Field",
+            y="Drop in ROC-AUC when shuffled",
+            sort="-Drop in ROC-AUC when shuffled",
+            horizontal=True,
+            color="#7D3C98",
+            height=320,
+        )
+        complete = hmda["complete_rows_check"]
+        st.caption(
+            f"With {hmda['dataset']['rows']:,} rows, cross-validation ({hmda['comparison'][0]['cv_accuracy']:.1%}) and test "
+            f"({big['accuracy']:.1%}) agree, so the estimate is stable. Leakage checks: fields filled in after the decision "
+            "(interest rate, costs, denial reasons) and race, sex, ethnicity and age are excluded; refitting on the "
+            f"{complete['rows']:,} rows with no missing values gives {complete['test_accuracy']:.1%} accuracy. Even this "
+            "much real data stays below 90%, because HMDA has no credit score. Details: reports/hmda_experiment.md."
+        )
+
     with st.expander("Limitations of this model"):
         st.markdown(
             "- The table holds 614 historical applications from a practice problem, not a live loan book.\n"
